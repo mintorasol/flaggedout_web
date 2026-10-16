@@ -143,7 +143,7 @@ function applyDefaultFraming(width = canvas.clientWidth, height = canvas.clientH
   const compactLandscape = height <= 560;
   const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * (compactLandscape ? 0.5 : 0.54));
   const distance = Math.max(horizontalDistance, verticalDistance);
-  cameraTarget.set(0, compactLandscape ? 3.75 : 2.95, 0);
+  cameraTarget.set(0, compactLandscape ? 3.75 : 1.5, 0);
   camera.position.set(0, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
 }
 
