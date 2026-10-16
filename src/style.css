@@ -446,7 +446,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
 @media (min-width: 1100px) and (min-height: 600px) {
   #game-canvas {
     inset: 88px auto auto clamp(220px, 18vw, 290px);
-    width: calc(100% - clamp(220px, 18vw, 290px) - clamp(270px, 22vw, 340px) - clamp(18px, 2vw, 32px));
+    width: calc(100% - clamp(220px, 18vw, 290px) - clamp(270px, 22vw, 340px) - clamp(18px, 2vw, 32px) - 28px);
     height: calc(100% - 124px);
   }
   .hud { inset: 0; }
@@ -468,7 +468,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
     right: clamp(22px, 2vw, 34px);
   }
   .elimination-board {
-    top: 126px;
+    top: max(132px, calc((100vh - 700px) / 2));
     right: clamp(18px, 2vw, 32px);
     bottom: 24px;
     left: auto;
