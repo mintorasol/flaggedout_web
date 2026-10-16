@@ -18,7 +18,7 @@ button { color: inherit; }
 #app {
   position: relative;
   isolation: isolate;
-  --arena-reserved-height: 180px;
+  --arena-reserved-height: 162px;
   background-color: #080d16;
   background-image:
     radial-gradient(ellipse at 0% 32%, rgba(17, 105, 218, .4), transparent 36%),
@@ -427,7 +427,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
   .shot-reload-heading strong { font-size: 17px; }
 }
 @media (max-height: 560px) and (orientation: landscape) {
-  #app { --arena-reserved-height: 132px; }
+  #app { --arena-reserved-height: 100px; }
   .elimination-board { bottom: 34px; height: 58px; }
   .elimination-heading { min-height: 14px; }
   .eliminated-flags { height: 16px; }

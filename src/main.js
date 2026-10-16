@@ -140,9 +140,10 @@ function applyDefaultFraming(width = canvas.clientWidth, height = canvas.clientH
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
   const horizontalDistance = 14 / (2 * Math.tan(horizontalFov / 2) * 0.7);
-  const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * 0.47);
+  const compactLandscape = height <= 560;
+  const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * (compactLandscape ? 0.5 : 0.54));
   const distance = Math.max(horizontalDistance, verticalDistance);
-  cameraTarget.set(0, 2.95, 0);
+  cameraTarget.set(0, compactLandscape ? 3.75 : 2.95, 0);
   camera.position.set(0, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
 }
 
