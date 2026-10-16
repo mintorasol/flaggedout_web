@@ -238,7 +238,14 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
   78% { transform: translateX(2px) rotate(.6deg); }
 }
 .shot-reload.hit-impact { animation: hit-impact .34s ease-out; }
-.elimination-board.hit-impact { animation: hit-impact .34s ease-out; }
+.elimination-board.hit-impact { animation: board-hit-impact .34s ease-out; }
+@keyframes board-hit-impact {
+  0%, 100% { translate: 0 0; }
+  18% { translate: -4px 0; }
+  38% { translate: 4px 0; }
+  58% { translate: -2px 0; }
+  78% { translate: 2px 0; }
+}
 .overlay-card { position: absolute; z-index: 3; width: min(370px, calc(100vw - 34px)); padding: 29px; border-radius: 7px; text-align: center; }
 .overlay-card h2 { margin: 13px 0 7px; font: 700 33px 'Barlow Condensed', sans-serif; letter-spacing: .04em; }
 .overlay-card p { margin: 0 0 22px; color: #91a2b7; font-size: 12px; }
