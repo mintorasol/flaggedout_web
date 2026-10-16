@@ -447,7 +447,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
   #game-canvas {
     inset: 88px auto auto clamp(220px, 18vw, 290px);
     width: calc(100% - clamp(220px, 18vw, 290px) - clamp(270px, 22vw, 340px) - clamp(18px, 2vw, 32px) - 28px);
-    height: calc(100% - 124px);
+    height: calc(100% - 88px);
   }
   .hud { inset: 0; }
   .hud-stats {
