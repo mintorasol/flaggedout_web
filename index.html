@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#080d16" />
+    <meta name="description" content="FLAGGED OUT GAME — a cinematic country-ball survival arena." />
+    <title>FLAGGED OUT GAME</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas" aria-label="FLAGGED OUT GAME 3D arena"></canvas>
+      <div class="vignette" aria-hidden="true"></div>
+      <span class="visually-hidden" id="status-label" aria-live="polite">SYSTEM READY</span>
+
+      <main>
+        <section class="launch-overlay active" id="launch-overlay" aria-hidden="false">
+          <div class="launch-card glass-panel">
+            <div class="eyebrow"><span class="eyebrow-line"></span> LAST NATION STANDING</div>
+            <h1>FLAGGED OUT GAME</h1>
+            <button class="primary-button launch-button" id="play-button" disabled><span>PLAY</span><b>▶</b></button>
+          </div>
+        </section>
+
+        <section class="interface-screen game-screen active" id="game-screen" aria-hidden="false">
+          <div class="game-brand" aria-label="FLAGGED OUT GAME">FLAGGED OUT <span>GAME</span></div>
+          <div class="game-prompt" aria-hidden="true"><span id="cycle-label">CYCLE 1 • LIVE</span><strong><span>WILL YOUR</span><span>COUNTRY SURVIVE?</span></strong></div>
+          <button class="settings-gear" id="settings-gear" aria-label="Open settings" title="Settings">⚙️</button>
+          <section class="hud" id="hud">
+            <div class="hud-stats glass-panel">
+              <div class="stat"><span>COUNTRIES</span><strong id="country-total-stat">50</strong></div>
+              <div class="stat"><span>REMAINING</span><strong id="remaining-stat">50</strong></div>
+            </div>
+            <div class="shot-reload" id="shot-reload" aria-label="Soldier reload timer">
+              <div class="shot-reload-heading"><span id="shot-reload-label">SOLDIER IN</span><strong id="shot-reload-time">4.0s</strong></div>
+              <div class="shot-reload-track" aria-hidden="true"><span id="shot-reload-progress"></span></div>
+            </div>
+            <section class="elimination-board glass-panel" id="elimination-board" aria-label="Eliminated countries">
+              <header class="elimination-heading">
+                <h2>ALL ELIMINATED</h2>
+              </header>
+              <div class="eliminated-flags" id="eliminated-flags" role="list" aria-label="Eliminated country flags"></div>
+              <div class="elimination-progress" aria-hidden="true"><span id="elimination-progress-bar"></span></div>
+              <div class="elimination-summary">
+                <strong class="elimination-count"><span id="eliminated-total">00</span><i>/</i><span id="elimination-target">50</span></strong>
+                <span class="elimination-count-label">ELIMINATED</span>
+              </div>
+            </section>
+          </section>
+          <div class="game-cta glass-panel" aria-label="Only one flag will remain"><span class="game-cta-icon" aria-hidden="true">🏁</span><span>ONLY ONE FLAG WILL REMAIN</span></div>
+          <div class="elimination-alert glass-panel" id="elimination-alert" role="status" aria-live="polite">
+            <span class="elimination-alert-mark"></span>
+            <span class="feed-flag" id="feed-flag" aria-hidden="true"></span>
+            <span class="elimination-alert-copy"><small>ELIMINATED</small><strong id="feed-text"></strong></span>
+          </div>
+
+          <section class="settings-backdrop hidden" id="settings-backdrop" aria-hidden="true">
+            <div class="settings-panel glass-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+              <div class="settings-heading">
+                <div><div class="eyebrow"><span class="eyebrow-line"></span> BATTLE CONFIGURATION</div><h2 class="screen-title" id="settings-title">SETTINGS</h2></div>
+                <button class="close-settings" id="close-settings-button" aria-label="Close settings">✕</button>
+              </div>
+              <p class="screen-copy">Changes apply to the ongoing battle.</p>
+              <div class="settings-grid">
+                <label class="setting"><span>COUNTRIES <b id="count-value">64</b></span><input id="count-input" type="range" min="10" max="100" step="1" value="64" /></label>
+                <label class="setting"><span>SHOT INTERVAL <b id="interval-value">4.0s</b></span><input id="interval-input" type="range" min="1" max="10" step="0.5" value="4" /></label>
+                <label class="setting"><span>OPENING SHOTS <b id="opening-shots-value">1</b></span><input id="opening-shots-input" type="range" min="1" max="20" step="1" value="1" /></label>
+                <label class="setting"><span>HIT PROBABILITY <b id="accuracy-value">75%</b></span><input id="accuracy-input" type="range" min="25" max="100" step="5" value="75" /></label>
+                <label class="setting"><span>TIMER &amp; EFFECT VOLUME <b id="volume-value">60%</b></span><input id="volume-input" type="range" min="0" max="100" step="5" value="60" /></label>
+                <label class="setting"><span>SHOT VOLUME <b id="shot-volume-value">60%</b></span><input id="shot-volume-input" type="range" min="0" max="100" step="5" value="60" /></label>
+                <label class="setting music-toggle-setting"><span>BACKGROUND MUSIC <b id="music-enabled-value">ON</b></span><input id="music-enabled-input" type="checkbox" checked /><span class="music-toggle-track" aria-hidden="true"></span></label>
+                <label class="setting"><span>MUSIC VOLUME <b id="music-volume-value">30%</b></span><input id="music-volume-input" type="range" min="0" max="100" step="5" value="30" /></label>
+                <div class="setting music-upload-setting">
+                  <span>BACKGROUND MUSIC FILE</span>
+                  <div class="music-file-controls">
+                    <label class="music-file-button" for="music-file-input">CHOOSE AUDIO</label>
+                    <input id="music-file-input" type="file" accept="audio/*" />
+                    <button id="remove-music-file" class="music-file-remove hidden" type="button" aria-label="Remove uploaded background music">REMOVE</button>
+                  </div>
+                  <span class="music-file-name" id="music-file-name">Using built-in music</span>
+                </div>
+                <label class="setting"><span>GAME SPEED <b id="speed-value">1.0×</b></span><input id="speed-input" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
+                <div class="setting quality-setting">
+                  <span>GRAPHICS QUALITY</span>
+                  <div class="quality-options" role="group" aria-label="Graphics quality">
+                    <button class="quality-option" type="button" data-quality="low" aria-pressed="false">LOW</button>
+                    <button class="quality-option selected" type="button" data-quality="medium" aria-pressed="true">MEDIUM</button>
+                    <button class="quality-option" type="button" data-quality="high" aria-pressed="false">HIGH</button>
+                  </div>
+                  <select id="quality-input" class="visually-hidden" tabindex="-1" aria-hidden="true">
+                    <option value="low">LOW</option><option value="medium" selected>MEDIUM</option><option value="high">HIGH</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-footer">
+                <button class="secondary-button sound-toggle" id="sound-button" aria-pressed="true"><span class="sound-icon">♫</span><span>SOUND ON</span></button>
+              </div>
+          </div>
+        </section>
+          <section class="victory-panel hidden" id="victory-panel" aria-label="Battle results">
+            <div class="victory-content">
+              <p class="winner-cycle" id="winner-cycle">CYCLE 1 COMPLETE</p>
+              <div class="winner-emblem"><div class="winner-flag" id="winner-flag"></div></div>
+              <p class="winner-label">LAST NATION STANDING</p>
+              <h2 id="winner-name">JAPAN</h2>
+              <p class="winner-verdict">SURVIVES</p>
+              <div class="victory-stats"><span>LASTED <b id="final-time">02:14</b></span><i>•</i><span><b id="final-eliminations">49</b> ELIMINATIONS</span></div>
+              <p class="next-cycle-countdown" id="next-cycle-countdown" aria-live="polite">NEXT CYCLE IN 5</p>
+            </div>
+          </section>
+        </section>
+        <div class="toast hidden" id="toast" role="status"></div>
+      </main>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
