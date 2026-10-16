@@ -3,6 +3,7 @@ import { createFlagTexture } from './flags.js';
 import { PORTAL_KEEP_OUT_RADIUS } from './constants.js';
 
 export const BALL_RADIUS = 0.4;
+const ARENA_RADIUS = 5.95;
 const sphereGeometry = new THREE.SphereGeometry(BALL_RADIUS, 40, 28);
 
 export class CountryBall {
@@ -48,16 +49,24 @@ export class CountryBall {
     if (!this.active || this.eliminating) return;
     this.driftTimer -= delta;
     if (this.driftTimer <= 0) {
-      this.driftTimer = 1.2 + Math.random() * 2.1;
+      this.driftTimer = 0.8 + Math.random() * 1.2;
       const angle = Math.random() * Math.PI * 2;
-      body.applyImpulse({ x: Math.cos(angle) * 0.16, y: Math.sin(elapsed * 1.4 + this.phase) * 0.045, z: Math.sin(angle) * 0.16 }, true);
+      const position = body.translation();
+      const distance = Math.hypot(position.x, position.z);
+      const nearWall = distance > ARENA_RADIUS - this.radius - 0.7;
+      const inwardStrength = nearWall && distance > 0.001 ? 0.12 : 0;
+      body.applyImpulse({
+        x: Math.cos(angle) * 0.16 - (position.x / Math.max(distance, 0.001)) * inwardStrength,
+        y: Math.sin(elapsed * 1.4 + this.phase) * 0.045,
+        z: Math.sin(angle) * 0.16 - (position.z / Math.max(distance, 0.001)) * inwardStrength
+      }, true);
     }
     const v = body.linvel();
     const horizontal = Math.hypot(v.x, v.z);
-    if (horizontal > 3.7) body.setLinvel({ x: v.x * 3.7 / horizontal, y: v.y, z: v.z * 3.7 / horizontal }, true);
-    else if (horizontal < 0.65) {
+    if (horizontal > 3.2) body.setLinvel({ x: v.x * 3.2 / horizontal, y: v.y, z: v.z * 3.2 / horizontal }, true);
+    else if (horizontal < 0.8) {
       const angle = this.phase + elapsed * 0.4;
-      body.applyImpulse({ x: Math.cos(angle) * 0.035, y: 0, z: Math.sin(angle) * 0.035 }, true);
+      body.applyImpulse({ x: Math.cos(angle) * 0.045, y: 0, z: Math.sin(angle) * 0.045 }, true);
     }
     const displacement = this.group.position.clone().sub(this.lastPos);
     if (displacement.lengthSq() > 0.00001) {

@@ -1,10 +1,12 @@
 import * as THREE from 'three';
 
 const ARENA_RADIUS = 5.95;
-const ARENA_ROTATION_SPEED = 0.095;
+const ARENA_ROTATION_SPEED = 3;
 
 export function createArena(scene) {
+  const fixedFloor = new THREE.Group();
   const rotating = new THREE.Group();
+  scene.add(fixedFloor);
   scene.add(rotating);
 
   const floorMaterial = new THREE.MeshStandardMaterial({
@@ -20,7 +22,7 @@ export function createArena(scene) {
   );
   floor.position.y = -0.2;
   floor.receiveShadow = true;
-  rotating.add(floor);
+  fixedFloor.add(floor);
 
   const playingSurface = new THREE.Mesh(
     new THREE.CylinderGeometry(5.98, 5.98, 0.035, 128),
@@ -28,7 +30,7 @@ export function createArena(scene) {
   );
   playingSurface.position.y = -0.035;
   playingSurface.receiveShadow = true;
-  rotating.add(playingSurface);
+  fixedFloor.add(playingSurface);
 
   const floorLines = new THREE.Group();
   const markingMaterial = new THREE.MeshBasicMaterial({
@@ -68,7 +70,13 @@ export function createArena(scene) {
     tick.rotation.y = angle;
     floorLines.add(tick);
   }
-  rotating.add(floorLines);
+  const rotationMarker = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.035, 0.55),
+    new THREE.MeshBasicMaterial({ color: 0xffa347, toneMapped: false })
+  );
+  rotationMarker.position.set(0, 0.005, -5.15);
+  floorLines.add(rotationMarker);
+  fixedFloor.add(floorLines);
 
   const wall = new THREE.Mesh(
     new THREE.CylinderGeometry(5.91, 5.91, 1.35, 128, 1, true),
@@ -149,6 +157,8 @@ export function createArena(scene) {
 
   return {
     group: rotating,
+    floorGroup: fixedFloor,
+    wallGroup: rotating,
     update(delta, paused) {
       if (!paused) rotating.rotation.y += delta * ARENA_ROTATION_SPEED;
       blueLight.intensity = 31 * (0.94 + Math.sin(performance.now() * 0.0016) * 0.06);

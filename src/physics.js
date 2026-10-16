@@ -24,7 +24,7 @@ export async function createPhysics() {
       body
     );
     body.setLinvel(velocity, true);
-    return { body, collider, previous: { ...position } };
+    return { body, collider, radius, previous: { ...position } };
   }
 
   function removeBall(ball) {
@@ -55,7 +55,7 @@ export async function createPhysics() {
     }
   }
 
-  function step(delta, balls, arenaSpeed) {
+  function step(delta, balls) {
     accumulator = Math.min(accumulator + Math.min(delta, 0.06), FIXED_STEP * 4);
     while (accumulator >= FIXED_STEP) {
       for (const ball of balls) {
@@ -71,23 +71,16 @@ export async function createPhysics() {
         const distance = Math.hypot(position.x, position.z);
         const nx = distance > 0.001 ? position.x / distance : 1;
         const nz = distance > 0.001 ? position.z / distance : 0;
-        if (distance > 0.001) {
-          const tangentX = -nz, tangentZ = nx;
-          const surfaceVelocity = arenaSpeed * Math.min(distance, ARENA_RADIUS);
-          const relativeTangent = velocity.x * tangentX + velocity.z * tangentZ;
-          const frictionImpulse = (surfaceVelocity - relativeTangent) * (distance > ARENA_RADIUS - 0.8 ? 0.075 : 0.014);
-          body.applyImpulse({ x: tangentX * frictionImpulse, y: 0, z: tangentZ * frictionImpulse }, true);
-        }
-
         if (distance > ARENA_RADIUS - ball.radius) {
           const corrected = ARENA_RADIUS - ball.radius;
           body.setTranslation({ x: nx * corrected, y: position.y, z: nz * corrected }, true);
           const normalSpeed = velocity.x * nx + velocity.z * nz;
           if (normalSpeed > 0) {
+            const inwardSpeed = Math.max(normalSpeed * 0.65, 2);
             body.setLinvel({
-              x: velocity.x - (1.84 * normalSpeed + 0.03) * nx,
+              x: velocity.x - (normalSpeed + inwardSpeed) * nx,
               y: velocity.y,
-              z: velocity.z - (1.84 * normalSpeed + 0.03) * nz
+              z: velocity.z - (normalSpeed + inwardSpeed) * nz
             }, true);
           }
         }
@@ -95,7 +88,8 @@ export async function createPhysics() {
       world.step();
       for (const ball of balls) {
         if (!ball.active || !ball.physics?.body) continue;
-        keepOutsidePortal(ball, ball.physics.body, ball.physics.body.translation());
+        const physicsBall = ball.physics;
+        keepOutsidePortal(ball, physicsBall.body, physicsBall.body.translation());
       }
       accumulator -= FIXED_STEP;
     }

@@ -44,9 +44,7 @@ let aimTarget = null;
 let aimTimer = 0;
 let quality = 'medium';
 let audioContext = null;
-let backgroundMusicTimer = null;
-let backgroundMusicStep = 0;
-let backgroundMusicNextNote = 0;
+const gunshotAudio = new Audio('/audio/shot-sound.mp3');
 let uploadedMusicBlob = null;
 let uploadedMusicUrl = null;
 let uploadedMusicAudio = null;
@@ -117,38 +115,35 @@ function setQuality(next) {
 
 function resize() {
   if (!renderer) return;
-  const width = window.innerWidth, height = window.innerHeight;
+  const width = canvas.clientWidth, height = canvas.clientHeight;
+  if (!width || !height) return;
   const portrait = width / height <= 0.8;
-  const compactLandscape = !portrait && height <= 560;
   camera.aspect = width / height;
-  camera.fov = portrait ? 54 : compactLandscape ? 48 : 38;
-  if (state !== 'VICTORY') applyDefaultFraming();
+  camera.fov = portrait ? 54 : 38;
+  if (state !== 'VICTORY') applyDefaultFraming(width, height);
   victoryCameraPosition.set(0, portrait ? 12 : 8.2, portrait ? 11 : 13.5);
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
 }
 
-function applyDefaultFraming() {
-  const aspect = window.innerWidth / window.innerHeight;
+function applyDefaultFraming(width = canvas.clientWidth, height = canvas.clientHeight) {
+  const aspect = width / height;
   const portrait = aspect <= 0.8;
   if (portrait) {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    const availableHeight = Math.max(280, height - 380);
-    const arenaDiameter = Math.min(width * 0.83, availableHeight);
-    const frameWidth = 15.2 * (width * 0.9 / arenaDiameter);
+    const arenaDiameter = Math.min(width * 0.9, height * 0.85);
+    const frameWidth = 14 * (width * 0.9 / arenaDiameter);
     const distance = frameWidth / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * aspect);
     cameraTarget.set(0, -2.15, 0);
     camera.position.set(0, cameraTarget.y + distance * 0.956, cameraTarget.z + distance * 0.293);
     return;
   }
-  if (window.innerHeight <= 560) {
-    cameraTarget.set(0, -4, 0);
-    camera.position.set(0, 5.2, 16.5);
-    return;
-  }
-  camera.position.set(0, 10.35, 16.5);
-  cameraTarget.set(0, -1.15, 0);
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+  const horizontalDistance = 14 / (2 * Math.tan(horizontalFov / 2) * 0.7);
+  const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * 0.64);
+  const distance = Math.max(horizontalDistance, verticalDistance);
+  cameraTarget.set(0, 0.35, 0);
+  camera.position.set(0, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
 }
 
 function restoreCamera() {
@@ -157,7 +152,7 @@ function restoreCamera() {
 }
 
 function playTone(frequency, duration, type = 'sine', volume = 0.06) {
-  const level = Math.min(1, volume * ui.getSettings().volume * 2);
+  const level = volume * 2 * ui.getSettings().volume;
   if (!soundEnabled || level <= 0) return;
   try {
     audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -178,7 +173,7 @@ function playTone(frequency, duration, type = 'sine', volume = 0.06) {
 
 function playCountdownTick(second) {
   const pitch = second === 1 ? 1040 : 780;
-  playTone(pitch, 0.055, 'square', 0.022);
+  playTone(pitch, 0.055, 'square', 0.055);
 }
 
 function playGoJingle() {
@@ -188,12 +183,7 @@ function playGoJingle() {
 }
 
 function stopBackgroundMusic() {
-  if (backgroundMusicTimer !== null) {
-    clearInterval(backgroundMusicTimer);
-    backgroundMusicTimer = null;
-  }
   if (uploadedMusicAudio && !uploadedMusicAudio.paused) uploadedMusicAudio.pause();
-  backgroundMusicNextNote = 0;
 }
 
 function updateBackgroundMusic() {
@@ -221,72 +211,19 @@ function updateBackgroundMusic() {
     stopBackgroundMusic();
     return;
   }
-  if (uploadedMusicAudio) {
-    if (backgroundMusicTimer !== null) {
-      clearInterval(backgroundMusicTimer);
-      backgroundMusicTimer = null;
-    }
-    uploadedMusicAudio.volume = settings.musicVolume;
-    if (uploadedMusicAudio.paused) {
-      uploadedMusicAudio.play().then(() => {
-        uploadedMusicPlaybackWarningShown = false;
-      }).catch((error) => {
-        if (!uploadedMusicPlaybackWarningShown) {
-          uploadedMusicPlaybackWarningShown = true;
-          console.warn('Uploaded background music could not start.', error);
-          ui.showToast('Background music could not start. Check the audio format and try again.');
-        }
-      });
-    }
-    return;
-  }
-  if (backgroundMusicTimer !== null) return;
+  if (!uploadedMusicAudio) return;
 
-  try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === 'suspended') audioContext.resume();
-    backgroundMusicStep = 0;
-    backgroundMusicNextNote = audioContext.currentTime + 0.05;
-    const melody = [261.63, 329.63, 392, 329.63, 293.66, 349.23, 392, 329.63];
-    backgroundMusicTimer = setInterval(() => {
-      if (!audioContext || audioContext.state !== 'running') return;
-      const now = audioContext.currentTime;
-      while (backgroundMusicNextNote < now + 0.18) {
-        const step = backgroundMusicStep % melody.length;
-        const start = backgroundMusicNextNote;
-        const duration = 0.29;
-        const level = 0.045 * ui.getSettings().musicVolume;
-        const note = audioContext.createOscillator();
-        const envelope = audioContext.createGain();
-        note.type = 'sine';
-        note.frequency.setValueAtTime(melody[step], start);
-        envelope.gain.setValueAtTime(0.0001, start);
-        envelope.gain.linearRampToValueAtTime(level, start + 0.025);
-        envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-        note.connect(envelope).connect(audioContext.destination);
-        note.start(start);
-        note.stop(start + duration);
-
-        if (step % 4 === 0) {
-          const bass = audioContext.createOscillator();
-          const bassEnvelope = audioContext.createGain();
-          bass.type = 'sine';
-          bass.frequency.setValueAtTime(melody[step] / 2, start);
-          bassEnvelope.gain.setValueAtTime(0.0001, start);
-          bassEnvelope.gain.linearRampToValueAtTime(level * 0.55, start + 0.04);
-          bassEnvelope.gain.exponentialRampToValueAtTime(0.0001, start + 0.5);
-          bass.connect(bassEnvelope).connect(audioContext.destination);
-          bass.start(start);
-          bass.stop(start + 0.5);
-        }
-
-        backgroundMusicStep++;
-        backgroundMusicNextNote += 0.34;
+  uploadedMusicAudio.volume = Math.min(1, settings.musicVolume * 1.5);
+  if (uploadedMusicAudio.paused) {
+    uploadedMusicAudio.play().then(() => {
+      uploadedMusicPlaybackWarningShown = false;
+    }).catch((error) => {
+      if (!uploadedMusicPlaybackWarningShown) {
+        uploadedMusicPlaybackWarningShown = true;
+        console.warn('Uploaded background music could not start.', error);
+        ui.showToast('Background music could not start. Check the audio format and try again.');
       }
-    }, 100);
-  } catch (error) {
-    stopBackgroundMusic();
-    console.warn('Background music is unavailable.', error);
+    });
   }
 }
 
@@ -301,49 +238,11 @@ function playGunshot() {
   const volume = ui.getSettings().shotVolume;
   if (!soundEnabled || volume <= 0) return;
 
-  try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === 'suspended') audioContext.resume();
-    const now = audioContext.currentTime;
-
-    for (let burst = 0; burst < 3; burst++) {
-      const duration = 0.065;
-      const buffer = audioContext.createBuffer(1, Math.ceil(audioContext.sampleRate * duration), audioContext.sampleRate);
-      const samples = buffer.getChannelData(0);
-      for (let i = 0; i < samples.length; i++) {
-        const decay = Math.exp(-i / (samples.length * 0.22));
-        samples[i] = (Math.random() * 2 - 1) * decay;
-      }
-
-      const source = audioContext.createBufferSource();
-      const filter = audioContext.createBiquadFilter();
-      const envelope = audioContext.createGain();
-      const start = now + burst * 0.075;
-      source.buffer = buffer;
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(1450 - burst * 100, start);
-      filter.Q.value = 0.72;
-      envelope.gain.setValueAtTime(0.0001, start);
-      envelope.gain.linearRampToValueAtTime(Math.min(1, volume * 0.4), start + 0.004);
-      envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-      source.connect(filter).connect(envelope).connect(audioContext.destination);
-      source.start(start);
-      source.stop(start + duration);
-    }
-
-    const thump = audioContext.createOscillator();
-    const thumpGain = audioContext.createGain();
-    thump.type = 'sine';
-    thump.frequency.setValueAtTime(125, now);
-    thump.frequency.exponentialRampToValueAtTime(48, now + 0.12);
-    thumpGain.gain.setValueAtTime(Math.min(1, volume * 0.44), now);
-    thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
-    thump.connect(thumpGain).connect(audioContext.destination);
-    thump.start(now);
-    thump.stop(now + 0.14);
-  } catch (error) {
-    console.warn('Procedural gunshot audio is unavailable.', error);
-  }
+  const shot = gunshotAudio.cloneNode();
+  shot.volume = volume;
+  shot.play().catch((error) => {
+    console.warn('Gunshot audio could not be played.', error);
+  });
 }
 
 function startBattle() {
@@ -577,7 +476,7 @@ function animate(now) {
     }
 
     for (const ball of balls) if (ball.active && !ball.eliminating) ball.nudge(ball.physics.body, elapsed, simulationDelta);
-    physics.step(simulationDelta, balls, arena.angularSpeed * gameSpeed);
+    physics.step(simulationDelta, balls);
     effects.updateBullets(simulationDelta, balls, eliminateBall, (bullet) => {
       triggerArenaImpact();
       ui.feed.textContent = bullet.miss ? `${bullet.targetName} evaded the shot` : 'Shot missed';
@@ -595,9 +494,9 @@ function animate(now) {
     arenaImpact = Math.max(0, arenaImpact - deltaTime);
     const strength = (arenaImpact / 0.34) * 0.14;
     const impulse = Math.sin((0.34 - arenaImpact) * 92) * strength;
-    arena.group.position.set(impulse, 0, -impulse * 0.72);
+    arena.wallGroup.position.set(impulse, 0, -impulse * 0.72);
   } else {
-    arena.group.position.set(0, 0, 0);
+    arena.wallGroup.position.set(0, 0, 0);
   }
   soldier.update(animationDelta, elapsed, active);
   effects.update(animationDelta);
@@ -634,14 +533,14 @@ async function init() {
       await ui.loadMusicFile();
     } catch (error) {
       console.error('Could not restore the saved background music.', error);
-      ui.showToast('Saved background music could not be restored. Built-in music is available.');
+      ui.showToast('Saved background music could not be restored. Choose an audio file in settings.');
     }
     createRenderer();
     physics = await createPhysics();
     arena = createArena(scene);
     soldier = createSoldier(scene);
     placeSoldierAtArenaCenter();
-    effects = new Effects(scene, arena.group);
+    effects = new Effects(scene, arena.floorGroup);
     ui.setReady();
     ui.showLaunch(true);
     ui.setState('MENU');
