@@ -23,6 +23,7 @@ camera.position.set(0, 11.2, 18.4);
 camera.lookAt(0, 0.35, 0);
 
 let renderer;
+let resizeObserver;
 let physics;
 let arena;
 let soldier;
@@ -105,11 +106,15 @@ function createRenderer() {
   resize();
 }
 
+function getPixelRatio() {
+  const pixelCap = quality === 'high' ? 1.75 : quality === 'low' ? 1 : 1.35;
+  return Math.min(window.devicePixelRatio || 1, pixelCap);
+}
+
 function setQuality(next) {
   quality = next;
   if (!renderer) return;
-  const pixelCap = quality === 'high' ? 1.75 : quality === 'low' ? 1 : 1.35;
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelCap));
+  renderer.setPixelRatio(getPixelRatio());
   renderer.shadowMap.enabled = quality !== 'low';
 }
 
@@ -117,6 +122,8 @@ function resize() {
   if (!renderer) return;
   const width = canvas.clientWidth, height = canvas.clientHeight;
   if (!width || !height) return;
+  const pixelRatio = getPixelRatio();
+  if (renderer.getPixelRatio() !== pixelRatio) renderer.setPixelRatio(pixelRatio);
   const portrait = width / height <= 0.8;
   camera.aspect = width / height;
   camera.fov = portrait ? 54 : 38;
@@ -139,12 +146,19 @@ function applyDefaultFraming(width = canvas.clientWidth, height = canvas.clientH
   }
   const verticalFov = THREE.MathUtils.degToRad(camera.fov);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
-  const horizontalDistance = 14 / (2 * Math.tan(horizontalFov / 2) * 1);
+  const horizontalDistance = 14 / (2 * Math.tan(horizontalFov / 2) * 0.53);
   const compactLandscape = height <= 560;
   const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * (compactLandscape ? 0.5 : 0.94));
   const distance = Math.max(horizontalDistance, verticalDistance);
-  cameraTarget.set(0, compactLandscape ? 3.75 : 0.55, 0);
-  camera.position.set(0, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
+  let targetX = 0;
+  if (window.matchMedia('(min-width: 1100px) and (min-height: 600px)').matches) {
+    const statsRight = document.querySelector('.hud-stats').getBoundingClientRect().right;
+    const boardLeft = document.querySelector('.elimination-board').getBoundingClientRect().left;
+    const centerOffset = (statsRight + boardLeft - width) / width;
+    targetX = -centerOffset * distance * Math.tan(horizontalFov / 2);
+  }
+  cameraTarget.set(targetX, compactLandscape ? 3.75 : 0.25, 0);
+  camera.position.set(targetX, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
 }
 
 function restoreCamera() {
@@ -546,6 +560,11 @@ async function init() {
     ui.showLaunch(true);
     ui.setState('MENU');
     window.addEventListener('resize', resize, { passive: true });
+    if ('ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(resize);
+      resizeObserver.observe(canvas);
+    }
+    resize();
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && state === 'PLAYING') {
         state = 'PAUSED';
