@@ -443,3 +443,45 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
   .topbar { padding-top: 11px; }
   .footer { padding-bottom: 9px; }
 }
+@media (min-width: 1100px) and (min-height: 600px) {
+  #game-canvas {
+    inset: 88px auto auto clamp(220px, 18vw, 290px);
+    width: calc(100% - clamp(220px, 18vw, 290px) - clamp(270px, 22vw, 340px) - clamp(18px, 2vw, 32px));
+    height: calc(100% - 124px);
+  }
+  .hud { inset: 0; }
+  .hud-stats {
+    top: 50%;
+    left: clamp(18px, 2vw, 34px);
+    width: clamp(190px, 16vw, 240px);
+    transform: translateY(-50%);
+  }
+  .stat {
+    min-width: 0;
+    flex: 1 1 0;
+    padding: 15px 8px 13px;
+  }
+  .stat span { font-size: clamp(9px, .7vw, 11px); }
+  .stat strong { font-size: clamp(28px, 2.2vw, 36px); }
+  .shot-reload {
+    top: 68px;
+    right: clamp(22px, 2vw, 34px);
+  }
+  .elimination-board {
+    top: 126px;
+    right: clamp(18px, 2vw, 32px);
+    bottom: 24px;
+    left: auto;
+    width: clamp(270px, 22vw, 340px);
+    height: auto;
+    max-height: 700px;
+    transform: none;
+    padding: 14px 12px 12px;
+  }
+  .elimination-heading h2 { font-size: 22px; }
+  .eliminated-flags {
+    grid-template-columns: repeat(auto-fill, 32px);
+    grid-auto-rows: 22px;
+    gap: 5px;
+  }
+}
