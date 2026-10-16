@@ -157,7 +157,7 @@ function restoreCamera() {
 }
 
 function playTone(frequency, duration, type = 'sine', volume = 0.06) {
-  const level = volume * ui.getSettings().volume;
+  const level = Math.min(1, volume * ui.getSettings().volume * 2);
   if (!soundEnabled || level <= 0) return;
   try {
     audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
@@ -324,7 +324,7 @@ function playGunshot() {
       filter.frequency.setValueAtTime(1450 - burst * 100, start);
       filter.Q.value = 0.72;
       envelope.gain.setValueAtTime(0.0001, start);
-      envelope.gain.linearRampToValueAtTime(volume * 0.2, start + 0.004);
+      envelope.gain.linearRampToValueAtTime(Math.min(1, volume * 0.4), start + 0.004);
       envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
       source.connect(filter).connect(envelope).connect(audioContext.destination);
       source.start(start);
@@ -336,7 +336,7 @@ function playGunshot() {
     thump.type = 'sine';
     thump.frequency.setValueAtTime(125, now);
     thump.frequency.exponentialRampToValueAtTime(48, now + 0.12);
-    thumpGain.gain.setValueAtTime(volume * 0.22, now);
+    thumpGain.gain.setValueAtTime(Math.min(1, volume * 0.44), now);
     thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
     thump.connect(thumpGain).connect(audioContext.destination);
     thump.start(now);
