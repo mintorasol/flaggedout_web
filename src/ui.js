@@ -22,7 +22,9 @@ export function createUI(onAction) {
     eliminationTarget: byId('elimination-target'), eliminationProgress: byId('elimination-progress-bar'),
     winnerName: byId('winner-name'), winnerFlag: byId('winner-flag'),
     finalEliminations: byId('final-eliminations'), finalTime: byId('final-time'),
-    cycleLabel: byId('cycle-label'), nextCycleCountdown: byId('next-cycle-countdown')
+    cycleLabel: byId('cycle-label'), nextCycleCountdown: byId('next-cycle-countdown'),
+    previousWinner: byId('previous-winner'), previousWinnerFlag: byId('previous-winner-flag'),
+    previousWinnerName: byId('previous-winner-name')
   };
   let soundEnabled = true;
   let backgroundMusicFile = null;
@@ -331,12 +333,16 @@ export function createUI(onAction) {
   }
   function showWinner(ball, stats) {
     ui.winnerName.textContent = ball.name.toUpperCase();
+    ui.previousWinnerName.textContent = ball.name.toUpperCase();
     ui.finalEliminations.textContent = String(stats.eliminated);
     ui.finalTime.textContent = formatTime(stats.elapsed);
     byId('winner-cycle').textContent = `CYCLE ${stats.cycle} COMPLETE`;
     const flag = createFlagTexture(THREE, ball.code);
-    ui.winnerFlag.style.backgroundImage = `url(${flag.texture.image.toDataURL()})`;
+    const image = `url(${flag.texture.image.toDataURL()})`;
+    ui.winnerFlag.style.backgroundImage = image;
     ui.winnerFlag.style.backgroundSize = 'cover';
+    ui.previousWinnerFlag.style.backgroundImage = image;
+    ui.previousWinner.classList.remove('hidden');
     flag.texture.dispose();
   }
   function updateNextCycleCountdown(seconds) {
