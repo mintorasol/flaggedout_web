@@ -24,7 +24,7 @@
 
         <section class="interface-screen game-screen active" id="game-screen" aria-hidden="false">
           <div class="game-brand" aria-label="FLAGGED OUT GAME">FLAGGED OUT <span>GAME</span></div>
-          <div class="game-prompt"><span id="cycle-label">CYCLE 1 • LIVE</span><strong><span>WILL YOUR</span><span>COUNTRY SURVIVE?</span></strong><div class="previous-winner hidden" id="previous-winner"><span class="previous-winner-label">LAST CYCLE WINNER</span><span class="previous-winner-result"><span class="previous-winner-flag" id="previous-winner-flag"></span><span id="previous-winner-name"></span></span></div></div>
+          <div class="game-prompt" aria-hidden="true"><span id="cycle-label">CYCLE 1 • LIVE</span><strong><span>WILL YOUR</span><span>COUNTRY SURVIVE?</span></strong></div>
           <button class="settings-gear" id="settings-gear" aria-label="Open settings" title="Settings">⚙️</button>
           <section class="hud" id="hud">
             <div class="hud-stats glass-panel">
@@ -69,7 +69,7 @@
                 <label class="setting"><span>TIMER &amp; EFFECT VOLUME <b id="volume-value">80%</b></span><input id="volume-input" type="range" min="0" max="100" step="5" value="80" /></label>
                 <label class="setting"><span>SHOT VOLUME <b id="shot-volume-value">80%</b></span><input id="shot-volume-input" type="range" min="0" max="100" step="5" value="80" /></label>
                 <label class="setting music-toggle-setting"><span>BACKGROUND MUSIC <b id="music-enabled-value">ON</b></span><input id="music-enabled-input" type="checkbox" checked /><span class="music-toggle-track" aria-hidden="true"></span></label>
-                <label class="setting"><span>MUSIC VOLUME <b id="music-volume-value">30%</b></span><input id="music-volume-input" type="range" min="0" max="100" step="5" value="30" /></label>
+                <label class="setting"><span>MUSIC VOLUME <b id="music-volume-value">60%</b></span><input id="music-volume-input" type="range" min="0" max="100" step="5" value="60" /></label>
                 <div class="setting music-upload-setting">
                   <span>BACKGROUND MUSIC FILE</span>
                   <div class="music-file-controls">
@@ -77,7 +77,7 @@
                     <input id="music-file-input" type="file" accept="audio/*" />
                     <button id="remove-music-file" class="music-file-remove hidden" type="button" aria-label="Remove uploaded background music">REMOVE</button>
                   </div>
-                  <span class="music-file-name" id="music-file-name">Using built-in music</span>
+                  <span class="music-file-name" id="music-file-name">No music uploaded</span>
                 </div>
                 <label class="setting"><span>GAME SPEED <b id="speed-value">1.0×</b></span><input id="speed-input" type="range" min="0.5" max="2" step="0.1" value="1" /></label>
                 <div class="setting quality-setting">
