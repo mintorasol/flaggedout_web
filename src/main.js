@@ -193,7 +193,7 @@ function stopBackgroundMusic() {
 function updateBackgroundMusic() {
   const settings = ui.getSettings();
   const musicFile = ui.getBackgroundMusicFile();
-  if (musicFile !== uploadedMusicBlob) {
+  if (!uploadedMusicAudio || musicFile !== uploadedMusicBlob) {
     stopBackgroundMusic();
     if (uploadedMusicAudio) uploadedMusicAudio.pause();
     if (uploadedMusicUrl) URL.revokeObjectURL(uploadedMusicUrl);
