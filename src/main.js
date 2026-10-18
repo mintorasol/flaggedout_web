@@ -248,7 +248,7 @@ function playGunshot() {
 }
 
 function speakAnnouncement(text) {
-  if (!soundEnabled || ui.getSettings().shotVolume <= 0) return;
+  if (!soundEnabled || ui.getSettings().voiceVolume <= 0) return;
   if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
     if (!speechUnavailableWarningShown) {
       speechUnavailableWarningShown = true;
@@ -268,7 +268,7 @@ function speakAnnouncement(text) {
   utterance.lang = utterance.voice?.lang || 'en-US';
   utterance.rate = 0.95;
   utterance.pitch = 1.08;
-  utterance.volume = ui.getSettings().shotVolume;
+  utterance.volume = ui.getSettings().voiceVolume;
   utterance.onerror = (event) => {
     if (event.error !== 'canceled' && event.error !== 'interrupted') {
       console.warn('Voice announcement could not be played.', event.error);
@@ -381,7 +381,7 @@ function handleAction(action) {
     if (soundEnabled) playTone(660, 0.09);
   } else if (action === 'settings-change') {
     const settings = ui.getSettings();
-    if ((!soundEnabled || settings.shotVolume <= 0) && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    if ((!soundEnabled || settings.voiceVolume <= 0) && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     const requestedQuality = settings.quality;
     if (requestedQuality !== quality) setQuality(requestedQuality);
     if (state === 'PLAYING' && settings.count !== configuredCountryCount) syncCountryCount(settings.count);

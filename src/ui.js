@@ -10,7 +10,7 @@ export function createUI(onAction) {
     launch: byId('launch-overlay'), settingsBackdrop: byId('settings-backdrop'),
     gear: byId('settings-gear'), hud: byId('hud'), victoryPanel: byId('victory-panel'), winnerConfetti: byId('winner-confetti'),
     count: byId('count-input'), interval: byId('interval-input'), openingShots: byId('opening-shots-input'), appearanceShots: byId('appearance-shots-input'), accuracy: byId('accuracy-input'),
-    volume: byId('volume-input'), shotVolume: byId('shot-volume-input'), speed: byId('speed-input'), quality: byId('quality-input'),
+    volume: byId('volume-input'), shotVolume: byId('shot-volume-input'), voiceVolume: byId('voice-volume-input'), speed: byId('speed-input'), quality: byId('quality-input'),
     musicEnabled: byId('music-enabled-input'), musicVolume: byId('music-volume-input'),
     musicFile: byId('music-file-input'), musicFileName: byId('music-file-name'), removeMusicFile: byId('remove-music-file'),
     reload: byId('shot-reload'), reloadLabel: byId('shot-reload-label'),
@@ -37,6 +37,7 @@ export function createUI(onAction) {
         accuracy: ui.accuracy,
         volume: ui.volume,
         shotVolume: ui.shotVolume,
+        voiceVolume: ui.voiceVolume,
         musicVolume: ui.musicVolume,
         gameSpeed: ui.speed
       };
@@ -64,6 +65,7 @@ export function createUI(onAction) {
         accuracy: Number(ui.accuracy.value),
         volume: Number(ui.volume.value),
         shotVolume: Number(ui.shotVolume.value),
+        voiceVolume: Number(ui.voiceVolume.value),
         backgroundMusic: ui.musicEnabled.checked,
         musicVolume: Number(ui.musicVolume.value),
         gameSpeed: Number(ui.speed.value),
@@ -173,7 +175,7 @@ export function createUI(onAction) {
     if (event.key === 'Escape' && !ui.settingsBackdrop.classList.contains('hidden')) showSettings(false);
   });
 
-  const settingsInputs = [ui.count, ui.interval, ui.openingShots, ui.appearanceShots, ui.accuracy, ui.volume, ui.shotVolume, ui.musicVolume, ui.speed, ui.quality];
+  const settingsInputs = [ui.count, ui.interval, ui.openingShots, ui.appearanceShots, ui.accuracy, ui.volume, ui.shotVolume, ui.voiceVolume, ui.musicVolume, ui.speed, ui.quality];
   for (const input of settingsInputs) input.addEventListener('input', () => {
     updateSettingLabels();
     saveSettings();
@@ -237,6 +239,7 @@ export function createUI(onAction) {
     byId('accuracy-value').textContent = `${ui.accuracy.value}%`;
     byId('volume-value').textContent = `${ui.volume.value}%`;
     byId('shot-volume-value').textContent = `${ui.shotVolume.value}%`;
+    byId('voice-volume-value').textContent = `${ui.voiceVolume.value}%`;
     byId('music-enabled-value').textContent = ui.musicEnabled.checked ? 'ON' : 'OFF';
     byId('music-volume-value').textContent = `${ui.musicVolume.value}%`;
     byId('speed-value').textContent = `${Number(ui.speed.value).toFixed(1)}×`;
@@ -383,6 +386,7 @@ export function createUI(onAction) {
         accuracy: Number(ui.accuracy.value) / 100,
         volume: Number(ui.volume.value) / 100,
         shotVolume: Number(ui.shotVolume.value) / 100,
+        voiceVolume: Number(ui.voiceVolume.value) / 100,
         backgroundMusic: ui.musicEnabled.checked,
         musicVolume: Number(ui.musicVolume.value) / 100,
         gameSpeed: Number(ui.speed.value),
