@@ -50,6 +50,7 @@ let aimTimer = 0;
 let quality = 'medium';
 let audioContext = null;
 const gunshotAudio = new Audio('/audio/shot-sound.mp3');
+const defaultBackgroundMusicUrl = '/audio/keep-climbing-the-soundings.mp3';
 let uploadedMusicBlob = null;
 let uploadedMusicUrl = null;
 let uploadedMusicAudio = null;
@@ -198,17 +199,15 @@ function updateBackgroundMusic() {
     if (uploadedMusicUrl) URL.revokeObjectURL(uploadedMusicUrl);
     uploadedMusicBlob = musicFile;
     uploadedMusicUrl = musicFile ? URL.createObjectURL(musicFile) : null;
-    uploadedMusicAudio = uploadedMusicUrl ? new Audio(uploadedMusicUrl) : null;
-    if (uploadedMusicAudio) {
-      uploadedMusicAudio.loop = true;
-      uploadedMusicAudio.preload = 'auto';
-      uploadedMusicAudio.addEventListener('error', () => {
-        if (uploadedMusicPlaybackWarningShown) return;
-        uploadedMusicPlaybackWarningShown = true;
-        console.warn('The uploaded background music could not be decoded or played.');
-        ui.showToast('This audio file could not be played. Choose another audio file.');
-      });
-    }
+    uploadedMusicAudio = new Audio(uploadedMusicUrl || defaultBackgroundMusicUrl);
+    uploadedMusicAudio.loop = true;
+    uploadedMusicAudio.preload = 'auto';
+    uploadedMusicAudio.addEventListener('error', () => {
+      if (uploadedMusicPlaybackWarningShown) return;
+      uploadedMusicPlaybackWarningShown = true;
+      console.warn('Background music could not be decoded or played.');
+      ui.showToast('Background music could not be loaded. Check the selected audio file.');
+    });
   }
   if (state !== 'PLAYING' || !soundEnabled || !settings.backgroundMusic || settings.musicVolume <= 0) {
     stopBackgroundMusic();
@@ -223,8 +222,8 @@ function updateBackgroundMusic() {
     }).catch((error) => {
       if (!uploadedMusicPlaybackWarningShown) {
         uploadedMusicPlaybackWarningShown = true;
-        console.warn('Uploaded background music could not start.', error);
-        ui.showToast('Background music could not start. Check the audio format and try again.');
+        console.warn('Background music could not start.', error);
+        ui.showToast('Background music could not start. Check the browser audio settings and try again.');
       }
     });
   }

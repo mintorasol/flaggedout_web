@@ -143,7 +143,7 @@ export function createUI(onAction) {
   }
 
   function updateMusicFileName() {
-    ui.musicFileName.textContent = backgroundMusicFile?.name || 'No music uploaded';
+    ui.musicFileName.textContent = backgroundMusicFile?.name || 'Keep Climbing - The Soundings (default)';
     ui.removeMusicFile.classList.toggle('hidden', !backgroundMusicFile);
   }
 
