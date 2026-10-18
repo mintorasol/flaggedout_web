@@ -23,7 +23,6 @@ camera.position.set(0, 11.2, 18.4);
 camera.lookAt(0, 0.35, 0);
 
 let renderer;
-let resizeObserver;
 let physics;
 let arena;
 let soldier;
@@ -38,6 +37,11 @@ let eliminated = 0;
 let completedCycles = 0;
 let openingShotsRemaining = 0;
 let openingShotsFired = 0;
+let openingShotsSummaryPending = false;
+let openingShotsEliminated = 0;
+const openingBulletsInFlight = new Set();
+let appearanceShotsRemaining = 0;
+const appearanceTargets = new Set();
 let shotTimer = 4;
 let lastCountdownSecond = null;
 let soldierHideTimer = 0;
@@ -50,6 +54,7 @@ let uploadedMusicBlob = null;
 let uploadedMusicUrl = null;
 let uploadedMusicAudio = null;
 let uploadedMusicPlaybackWarningShown = false;
+let speechUnavailableWarningShown = false;
 let lastFrame = performance.now();
 let cameraTarget = new THREE.Vector3(0, 0.35, 0);
 let shake = 0;
@@ -106,59 +111,42 @@ function createRenderer() {
   resize();
 }
 
-function getPixelRatio() {
-  const pixelCap = quality === 'high' ? 1.75 : quality === 'low' ? 1 : 1.35;
-  return Math.min(window.devicePixelRatio || 1, pixelCap);
-}
-
 function setQuality(next) {
   quality = next;
   if (!renderer) return;
-  renderer.setPixelRatio(getPixelRatio());
+  const pixelCap = quality === 'high' ? 1.75 : quality === 'low' ? 1 : 1.35;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, pixelCap));
   renderer.shadowMap.enabled = quality !== 'low';
 }
 
 function resize() {
   if (!renderer) return;
-  const width = canvas.clientWidth, height = canvas.clientHeight;
-  if (!width || !height) return;
-  const pixelRatio = getPixelRatio();
-  if (renderer.getPixelRatio() !== pixelRatio) renderer.setPixelRatio(pixelRatio);
+  const width = window.innerWidth, height = window.innerHeight;
   const portrait = width / height <= 0.8;
   camera.aspect = width / height;
   camera.fov = portrait ? 54 : 38;
-  if (state !== 'VICTORY') applyDefaultFraming(width, height);
+  if (state !== 'VICTORY') applyDefaultFraming();
   victoryCameraPosition.set(0, portrait ? 12 : 8.2, portrait ? 11 : 13.5);
   camera.updateProjectionMatrix();
   renderer.setSize(width, height, false);
 }
 
-function applyDefaultFraming(width = canvas.clientWidth, height = canvas.clientHeight) {
-  const aspect = width / height;
+function applyDefaultFraming() {
+  const aspect = window.innerWidth / window.innerHeight;
   const portrait = aspect <= 0.8;
   if (portrait) {
-    const arenaDiameter = Math.min(width * 0.9, height * 0.85);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    const availableHeight = Math.max(280, height - 340);
+    const arenaDiameter = Math.min(width * 0.9, availableHeight);
     const frameWidth = 14 * (width * 0.9 / arenaDiameter);
     const distance = frameWidth / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * aspect);
     cameraTarget.set(0, -2.15, 0);
     camera.position.set(0, cameraTarget.y + distance * 0.956, cameraTarget.z + distance * 0.293);
     return;
   }
-  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
-  const horizontalDistance = 14 / (2 * Math.tan(horizontalFov / 2) * 0.53);
-  const compactLandscape = height <= 560;
-  const verticalDistance = 7.2 / (2 * Math.tan(verticalFov / 2) * (compactLandscape ? 0.5 : 0.94));
-  const distance = Math.max(horizontalDistance, verticalDistance);
-  let targetX = 0;
-  if (window.matchMedia('(min-width: 1100px) and (min-height: 600px)').matches) {
-    const statsRight = document.querySelector('.hud-stats').getBoundingClientRect().right;
-    const boardLeft = document.querySelector('.elimination-board').getBoundingClientRect().left;
-    const centerOffset = (statsRight + boardLeft - width) / width;
-    targetX = -centerOffset * distance * Math.tan(horizontalFov / 2);
-  }
-  cameraTarget.set(targetX, compactLandscape ? 3.75 : 0.25, 0);
-  camera.position.set(targetX, cameraTarget.y + distance * 0.52, cameraTarget.z + distance * 0.855);
+  camera.position.set(0, 11.2, 18.4);
+  cameraTarget.set(0, 0.35, 0);
 }
 
 function restoreCamera() {
@@ -260,6 +248,45 @@ function playGunshot() {
   });
 }
 
+function speakAnnouncement(text) {
+  if (!soundEnabled || ui.getSettings().shotVolume <= 0) return;
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    if (!speechUnavailableWarningShown) {
+      speechUnavailableWarningShown = true;
+      console.warn('Speech announcements are not supported by this browser.');
+      ui.showToast('This browser does not support voice announcements.');
+    }
+    return;
+  }
+
+  const synthesis = window.speechSynthesis;
+  const utterance = new SpeechSynthesisUtterance(text);
+  const englishVoices = synthesis.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith('en'));
+  const femaleVoice = englishVoices.find((voice) =>
+    /\b(female|woman|samantha|victoria|karen|zira|aria|jenny|susan|sara|sally|serena|ava|allison|joanna|kendra|kimberly|salli|tessa|moira|fiona)\b/i.test(voice.name)
+  );
+  utterance.voice = femaleVoice || englishVoices[0] || null;
+  utterance.lang = utterance.voice?.lang || 'en-US';
+  utterance.rate = 0.95;
+  utterance.pitch = 1.08;
+  utterance.volume = ui.getSettings().shotVolume;
+  utterance.onerror = (event) => {
+    if (event.error !== 'canceled' && event.error !== 'interrupted') {
+      console.warn('Voice announcement could not be played.', event.error);
+    }
+  };
+  synthesis.speak(utterance);
+}
+
+function resolveOpeningShot(bullet) {
+  if (!bullet.openingShot) return;
+  openingBulletsInFlight.delete(bullet);
+  if (openingShotsSummaryPending && openingShotsRemaining === 0 && openingBulletsInFlight.size === 0 && state === 'PLAYING') {
+    openingShotsSummaryPending = false;
+    speakAnnouncement(`${openingShotsEliminated} ${openingShotsEliminated === 1 ? 'country' : 'countries'} eliminated`);
+  }
+}
+
 function startBattle() {
   state = 'STARTING';
   nextCycleTimer = 0;
@@ -270,6 +297,11 @@ function startBattle() {
   if (settings.quality !== quality) setQuality(settings.quality);
   openingShotsRemaining = settings.openingShots;
   openingShotsFired = 0;
+  openingShotsSummaryPending = settings.openingShots > 0;
+  openingShotsEliminated = 0;
+  openingBulletsInFlight.clear();
+  appearanceShotsRemaining = 0;
+  appearanceTargets.clear();
   const countries = getCountries();
   configuredCountryCount = settings.count;
   for (let i = 0; i < settings.count; i++) {
@@ -279,7 +311,8 @@ function startBattle() {
     balls.push(ball);
   }
   elapsed = 0; shots = 0; hits = 0; eliminated = 0;
-  ui.updateCycle(completedCycles + 1);
+  const cycleNumber = completedCycles + 1;
+  ui.updateCycle(cycleNumber);
   shotTimer = ui.getSettings().interval; soldierHideTimer = 0;
   lastCountdownSecond = Math.ceil(shotTimer);
   aimTarget = null; aimTimer = 0; victoryStarted = false;
@@ -290,6 +323,7 @@ function startBattle() {
   state = 'PLAYING';
   ui.setState(state);
   updateBackgroundMusic();
+  speakAnnouncement(`Cycle ${cycleNumber} started`);
   playTone(440, 0.12);
   playCountdownTick(lastCountdownSecond);
 }
@@ -329,6 +363,8 @@ function resetBattle() {
   soldier.muzzleLight.intensity = 0;
   soldier.rifle.position.z = -0.58;
   soldierHideTimer = 0;
+  appearanceShotsRemaining = 0;
+  appearanceTargets.clear();
   ui.updateReloadTimer(0, 4, 'hidden');
   champion = null;
   victoryTime = 0;
@@ -341,10 +377,12 @@ function handleAction(action) {
   } else if (action === 'sound') {
     soundEnabled = !soundEnabled;
     ui.toggleSound(soundEnabled);
+    if (!soundEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     updateBackgroundMusic();
     if (soundEnabled) playTone(660, 0.09);
   } else if (action === 'settings-change') {
     const settings = ui.getSettings();
+    if ((!soundEnabled || settings.shotVolume <= 0) && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     const requestedQuality = settings.quality;
     if (requestedQuality !== quality) setQuality(requestedQuality);
     if (state === 'PLAYING' && settings.count !== configuredCountryCount) syncCountryCount(settings.count);
@@ -355,8 +393,14 @@ function handleAction(action) {
 function selectTarget() {
   const survivors = balls.filter((ball) => ball.active && !ball.eliminating);
   if (survivors.length <= 1) { triggerVictory(survivors[0]); return; }
+  const isOpeningShot = openingShotsRemaining > 0;
+  if (!isOpeningShot) {
+    appearanceTargets.clear();
+    appearanceShotsRemaining = Math.min(ui.getSettings().appearanceShots, survivors.length);
+  }
   const target = survivors[Math.floor(Math.random() * survivors.length)];
   aimTarget = target;
+  if (!isOpeningShot) appearanceTargets.add(target);
   aimTimer = openingShotsRemaining > 0 && openingShotsFired > 0 ? OPENING_SHOT_AIM_DURATION : 1.2;
   soldier.emerge();
   soldier.aimAt(target.group.position);
@@ -370,8 +414,22 @@ function selectTarget() {
 
 function fireAtTarget() {
   if (!aimTarget?.active || aimTarget.eliminating || balls.filter((ball) => ball.active && !ball.eliminating).length <= 1) {
+    if (openingShotsRemaining === 0 && appearanceShotsRemaining > 0) {
+      const candidates = balls.filter((ball) => ball.active && !ball.eliminating && !appearanceTargets.has(ball));
+      if (candidates.length > 0) {
+        aimTarget = candidates[Math.floor(Math.random() * candidates.length)];
+        appearanceTargets.add(aimTarget);
+        aimTimer = OPENING_SHOT_AIM_DURATION;
+        shotTimer = OPENING_SHOT_INTERVAL;
+        lastCountdownSecond = Math.ceil(shotTimer);
+        soldier.aimAt(aimTarget.group.position);
+        return;
+      }
+      appearanceShotsRemaining = 0;
+    }
     aimTarget = null;
     soldier.hide();
+    appearanceShotsRemaining = 0;
     shotTimer = ui.getSettings().interval;
     lastCountdownSecond = Math.ceil(shotTimer);
     return;
@@ -382,37 +440,58 @@ function fireAtTarget() {
   const target = aimTarget.group.position.clone();
   target.y += 0.02;
   const miss = Math.random() > ui.getSettings().accuracy;
-  effects.spawnBullet(start, target, miss, aimTarget.name);
+  const bullet = effects.spawnBullet(start, target, miss, aimTarget.name, openingShotsRemaining > 0);
+  if (bullet.openingShot) openingBulletsInFlight.add(bullet);
   shots++;
   const isOpeningShot = openingShotsRemaining > 0;
   if (isOpeningShot) {
     openingShotsRemaining--;
     openingShotsFired++;
+  } else {
+    appearanceShotsRemaining--;
   }
+  let nextAppearanceTarget = null;
+  if (!isOpeningShot && appearanceShotsRemaining > 0) {
+    const survivors = balls.filter((ball) => ball.active && !ball.eliminating && !appearanceTargets.has(ball));
+    if (survivors.length > 0) {
+      nextAppearanceTarget = survivors[Math.floor(Math.random() * survivors.length)];
+      appearanceTargets.add(nextAppearanceTarget);
+    } else {
+      appearanceShotsRemaining = 0;
+    }
+  }
+  const continueOpeningShots = isOpeningShot && openingShotsRemaining > 0;
+  const continueAppearance = nextAppearanceTarget !== null;
   ui.feed.textContent = `Firing on ${aimTarget.name}`;
   playGunshot();
-  shotTimer = isOpeningShot && openingShotsRemaining > 0 ? OPENING_SHOT_INTERVAL : ui.getSettings().interval;
+  shotTimer = continueOpeningShots || continueAppearance ? OPENING_SHOT_INTERVAL : ui.getSettings().interval;
   lastCountdownSecond = Math.ceil(shotTimer);
-  soldierHideTimer = isOpeningShot && openingShotsRemaining > 0 ? 0 : 0.48;
+  soldierHideTimer = continueOpeningShots || continueAppearance ? 0 : 0.48;
   ui.updateReloadTimer(shotTimer, ui.getSettings().interval);
-  aimTarget = null;
+  if (continueAppearance) {
+    aimTarget = nextAppearanceTarget;
+    aimTimer = OPENING_SHOT_AIM_DURATION;
+  } else {
+    aimTarget = null;
+  }
 }
 
 function triggerArenaImpact() {
   arenaImpact = 0.34;
 }
 
-function eliminateBall(ball, point) {
+function eliminateBall(ball, point, openingShot = false) {
   if (!ball?.active || ball.eliminating || balls.filter((item) => item.active && !item.eliminating).length <= 1) return;
   ball.eliminate();
   hits++;
   eliminated++;
+  if (openingShot) openingShotsEliminated++;
   shake = 0.12;
   triggerArenaImpact();
   ui.triggerHitImpact();
   effects.burst(point, 22);
   ui.showElimination(ball);
-  ui.feed.textContent = `${ball.name} eliminated`;
+  if (!openingShot) speakAnnouncement(`${ball.name} eliminated`);
   playTone(220, 0.22, 'sawtooth', 0.06);
   setTimeout(() => playTone(110, 0.22, 'triangle', 0.04), 55);
 }
@@ -434,6 +513,7 @@ function triggerVictory(winner) {
   completedCycles++;
   ui.updateCycle(completedCycles, 'COMPLETE');
   ui.showWinner(winner, { eliminated, elapsed, cycle: completedCycles });
+  speakAnnouncement(`${winner.name} wins`);
   nextCycleTimer = NEXT_CYCLE_DELAY;
   lastNextCycleSecond = NEXT_CYCLE_DELAY;
   ui.updateNextCycleCountdown(NEXT_CYCLE_DELAY);
@@ -492,7 +572,11 @@ function animate(now) {
 
     for (const ball of balls) if (ball.active && !ball.eliminating) ball.nudge(ball.physics.body, elapsed, simulationDelta);
     physics.step(simulationDelta, balls);
-    effects.updateBullets(simulationDelta, balls, eliminateBall, (bullet) => {
+    effects.updateBullets(simulationDelta, balls, (ball, point, bullet) => {
+      eliminateBall(ball, point, bullet.openingShot);
+      resolveOpeningShot(bullet);
+    }, (bullet) => {
+      resolveOpeningShot(bullet);
       triggerArenaImpact();
       ui.feed.textContent = bullet.miss ? `${bullet.targetName} evaded the shot` : 'Shot missed';
       playTone(180, 0.12, 'triangle', 0.02);
@@ -560,11 +644,6 @@ async function init() {
     ui.showLaunch(true);
     ui.setState('MENU');
     window.addEventListener('resize', resize, { passive: true });
-    if ('ResizeObserver' in window) {
-      resizeObserver = new ResizeObserver(resize);
-      resizeObserver.observe(canvas);
-    }
-    resize();
     document.addEventListener('visibilitychange', () => {
       if (document.hidden && state === 'PLAYING') {
         state = 'PAUSED';

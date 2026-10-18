@@ -8,8 +8,8 @@ export function createUI(onAction) {
   const ui = {
     app: byId('app'),
     launch: byId('launch-overlay'), settingsBackdrop: byId('settings-backdrop'),
-    gear: byId('settings-gear'), hud: byId('hud'), victoryPanel: byId('victory-panel'),
-    count: byId('count-input'), interval: byId('interval-input'), openingShots: byId('opening-shots-input'), accuracy: byId('accuracy-input'),
+    gear: byId('settings-gear'), hud: byId('hud'), victoryPanel: byId('victory-panel'), winnerConfetti: byId('winner-confetti'),
+    count: byId('count-input'), interval: byId('interval-input'), openingShots: byId('opening-shots-input'), appearanceShots: byId('appearance-shots-input'), accuracy: byId('accuracy-input'),
     volume: byId('volume-input'), shotVolume: byId('shot-volume-input'), speed: byId('speed-input'), quality: byId('quality-input'),
     musicEnabled: byId('music-enabled-input'), musicVolume: byId('music-volume-input'),
     musicFile: byId('music-file-input'), musicFileName: byId('music-file-name'), removeMusicFile: byId('remove-music-file'),
@@ -33,6 +33,7 @@ export function createUI(onAction) {
         count: ui.count,
         interval: ui.interval,
         openingShots: ui.openingShots,
+        appearanceShots: ui.appearanceShots,
         accuracy: ui.accuracy,
         volume: ui.volume,
         shotVolume: ui.shotVolume,
@@ -59,6 +60,7 @@ export function createUI(onAction) {
         count: Number(ui.count.value),
         interval: Number(ui.interval.value),
         openingShots: Number(ui.openingShots.value),
+        appearanceShots: Number(ui.appearanceShots.value),
         accuracy: Number(ui.accuracy.value),
         volume: Number(ui.volume.value),
         shotVolume: Number(ui.shotVolume.value),
@@ -171,7 +173,7 @@ export function createUI(onAction) {
     if (event.key === 'Escape' && !ui.settingsBackdrop.classList.contains('hidden')) showSettings(false);
   });
 
-  const settingsInputs = [ui.count, ui.interval, ui.openingShots, ui.accuracy, ui.volume, ui.shotVolume, ui.musicVolume, ui.speed, ui.quality];
+  const settingsInputs = [ui.count, ui.interval, ui.openingShots, ui.appearanceShots, ui.accuracy, ui.volume, ui.shotVolume, ui.musicVolume, ui.speed, ui.quality];
   for (const input of settingsInputs) input.addEventListener('input', () => {
     updateSettingLabels();
     saveSettings();
@@ -231,6 +233,7 @@ export function createUI(onAction) {
     byId('count-value').textContent = ui.count.value;
     byId('interval-value').textContent = `${Number(ui.interval.value).toFixed(1)}s`;
     byId('opening-shots-value').textContent = ui.openingShots.value;
+    byId('appearance-shots-value').textContent = ui.appearanceShots.value;
     byId('accuracy-value').textContent = `${ui.accuracy.value}%`;
     byId('volume-value').textContent = `${ui.volume.value}%`;
     byId('shot-volume-value').textContent = `${ui.shotVolume.value}%`;
@@ -258,6 +261,7 @@ export function createUI(onAction) {
   }
   function setState(state) {
     ui.victoryPanel.classList.toggle('hidden', state !== 'VICTORY');
+    if (state !== 'VICTORY') ui.winnerConfetti.classList.remove('active');
     const labels = { MENU: 'SYSTEM READY', STARTING: 'INITIALIZING', PLAYING: 'LIVE BATTLE', PAUSED: 'BATTLE PAUSED', VICTORY: 'BATTLE COMPLETE' };
     ui.status.textContent = labels[state] || 'SYSTEM READY';
   }
@@ -311,7 +315,7 @@ export function createUI(onAction) {
     updateEliminationProgress(0, total);
   }
   function showElimination(ball) {
-    ui.feed.textContent = `${ball.name} eliminated`;
+    ui.feed.textContent = ball.name;
     const flag = createFlagTexture(THREE, ball.code);
     const image = flag.texture.image.toDataURL();
     ui.feedFlag.style.backgroundImage = `url(${image})`;
@@ -338,6 +342,26 @@ export function createUI(onAction) {
     ui.winnerFlag.style.backgroundImage = `url(${flag.texture.image.toDataURL()})`;
     ui.winnerFlag.style.backgroundSize = 'cover';
     flag.texture.dispose();
+    startWinnerConfetti();
+  }
+  function startWinnerConfetti() {
+    const colors = ['#35dff5', '#ff9b54', '#f4f8ff', '#ffd166', '#8b7bff', '#ff6384'];
+    const pieces = Array.from({ length: 56 }, () => {
+      const piece = document.createElement('span');
+      piece.className = 'winner-confetti-piece';
+      piece.style.setProperty('--left', `${Math.random() * 100}%`);
+      piece.style.setProperty('--drift', `${Math.round((Math.random() - 0.5) * 180)}px`);
+      piece.style.setProperty('--duration', `${2.7 + Math.random() * 1.8}s`);
+      piece.style.setProperty('--delay', `${Math.random() * 0.65}s`);
+      piece.style.setProperty('--spin', `${Math.round(360 + Math.random() * 1080)}deg`);
+      piece.style.setProperty('--width', `${4 + Math.random() * 5}px`);
+      piece.style.setProperty('--height', `${8 + Math.random() * 8}px`);
+      piece.style.setProperty('--color', colors[Math.floor(Math.random() * colors.length)]);
+      return piece;
+    });
+    ui.winnerConfetti.classList.remove('active');
+    ui.winnerConfetti.replaceChildren(...pieces);
+    ui.winnerConfetti.classList.add('active');
   }
   function updateNextCycleCountdown(seconds) {
     ui.nextCycleCountdown.textContent = seconds > 0 ? `NEXT CYCLE IN ${seconds}` : 'NEXT CYCLE STARTING';
@@ -355,6 +379,7 @@ export function createUI(onAction) {
         count: Number(ui.count.value),
         interval: Number(ui.interval.value),
         openingShots: Number(ui.openingShots.value),
+        appearanceShots: Number(ui.appearanceShots.value),
         accuracy: Number(ui.accuracy.value) / 100,
         volume: Number(ui.volume.value) / 100,
         shotVolume: Number(ui.shotVolume.value) / 100,

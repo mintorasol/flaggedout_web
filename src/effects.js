@@ -56,7 +56,7 @@ export class Effects {
     this.arenaFlashes.push({ mesh, age: 0, duration: 0.42 });
   }
 
-  spawnBullet(start, target, miss, targetName) {
+  spawnBullet(start, target, miss, targetName, openingShot = false) {
     const mesh = new THREE.Mesh(this.bulletGeometry, this.bulletMaterial);
     mesh.position.copy(start);
     this.scene.add(mesh);
@@ -73,7 +73,7 @@ export class Effects {
     const trail = this.makeTrail();
     trail.position.copy(start);
     this.scene.add(trail);
-    const bullet = { mesh, trail, velocity, age: 0, maxAge: Math.min(2.4, distance / speed + 0.3), miss, targetName, previous: start.clone() };
+    const bullet = { mesh, trail, velocity, age: 0, maxAge: Math.min(2.4, distance / speed + 0.3), miss, targetName, openingShot, previous: start.clone() };
     this.bullets.push(bullet);
     return bullet;
   }
@@ -112,7 +112,7 @@ export class Effects {
         this.spawnArenaShadow(bullet.mesh.position);
         this.spawnArenaFlash();
         this.removeBullet(i);
-        onHit(hit, bullet.mesh.position);
+        onHit(hit, bullet.mesh.position, bullet);
       } else if (bullet.age > bullet.maxAge || bullet.mesh.position.y < -0.15) {
         this.burst(bullet.mesh.position, bullet.miss ? 5 : 3);
         this.spawnArenaShadow(bullet.mesh.position);

@@ -70,12 +70,6 @@ export function createArena(scene) {
     tick.rotation.y = angle;
     floorLines.add(tick);
   }
-  const rotationMarker = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 0.035, 0.55),
-    new THREE.MeshBasicMaterial({ color: 0xffa347, toneMapped: false })
-  );
-  rotationMarker.position.set(0, 0.005, -5.15);
-  floorLines.add(rotationMarker);
   fixedFloor.add(floorLines);
 
   const wall = new THREE.Mesh(
@@ -151,9 +145,6 @@ export function createArena(scene) {
   const blueLight = new THREE.PointLight(0x387dff, 34, 9, 1.8);
   blueLight.position.set(-4.2, 2.3, -3.2);
   scene.add(blueLight);
-  const warmLight = new THREE.PointLight(0xff934f, 17, 7, 2);
-  warmLight.position.set(4.2, 1.5, 2.4);
-  scene.add(warmLight);
 
   return {
     group: rotating,

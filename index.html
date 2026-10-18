@@ -65,6 +65,7 @@
                 <label class="setting"><span>COUNTRIES <b id="count-value">64</b></span><input id="count-input" type="range" min="10" max="100" step="1" value="64" /></label>
                 <label class="setting"><span>SHOT INTERVAL <b id="interval-value">4.0s</b></span><input id="interval-input" type="range" min="1" max="10" step="0.5" value="4" /></label>
                 <label class="setting"><span>OPENING SHOTS <b id="opening-shots-value">1</b></span><input id="opening-shots-input" type="range" min="1" max="60" step="1" value="1" /></label>
+                <label class="setting"><span>SHOTS PER APPEARANCE <b id="appearance-shots-value">1</b></span><input id="appearance-shots-input" type="range" min="1" max="3" step="1" value="1" /></label>
                 <label class="setting"><span>HIT PROBABILITY <b id="accuracy-value">75%</b></span><input id="accuracy-input" type="range" min="25" max="100" step="5" value="75" /></label>
                 <label class="setting"><span>TIMER &amp; EFFECT VOLUME <b id="volume-value">80%</b></span><input id="volume-input" type="range" min="0" max="100" step="5" value="80" /></label>
                 <label class="setting"><span>SHOT VOLUME <b id="shot-volume-value">80%</b></span><input id="shot-volume-input" type="range" min="0" max="100" step="5" value="80" /></label>
@@ -98,6 +99,7 @@
           </div>
         </section>
           <section class="victory-panel hidden" id="victory-panel" aria-label="Battle results">
+            <div class="winner-confetti" id="winner-confetti" aria-hidden="true"></div>
             <div class="victory-content">
               <p class="winner-cycle" id="winner-cycle">CYCLE 1 COMPLETE</p>
               <div class="winner-emblem"><div class="winner-flag" id="winner-flag"></div></div>
