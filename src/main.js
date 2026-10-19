@@ -49,6 +49,9 @@ let aimTarget = null;
 let aimTimer = 0;
 let quality = 'medium';
 let audioContext = null;
+let effectsGainNode = null;
+let gunshotSource = null;
+let gunshotGainNode = null;
 const gunshotAudio = new Audio('/audio/shot-sound.mp3');
 gunshotAudio.preload = 'auto';
 let gunshotPlaybackGeneration = 0;
@@ -159,19 +162,59 @@ function restoreCamera() {
   camera.lookAt(cameraTarget);
 }
 
+function setGainLevel(gainNode, level) {
+  if (!gainNode || !audioContext) return;
+  gainNode.gain.setTargetAtTime(level, audioContext.currentTime, 0.025);
+}
+
+function updateAudioVolumes() {
+  const settings = ui.getSettings();
+  setGainLevel(effectsGainNode, soundEnabled ? settings.volume : 0);
+  setGainLevel(gunshotGainNode, soundEnabled ? settings.shotVolume : 0);
+  if (!gunshotGainNode) gunshotAudio.volume = soundEnabled ? settings.shotVolume : 0;
+}
+
+function ensureAudioContext() {
+  if (!audioContext) {
+    const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextConstructor) return false;
+    audioContext = new AudioContextConstructor();
+    effectsGainNode = audioContext.createGain();
+    effectsGainNode.connect(audioContext.destination);
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume().catch((error) => {
+      console.warn('Game audio could not be unlocked.', error);
+    });
+  }
+  updateAudioVolumes();
+  return true;
+}
+
+function connectGunshotAudio() {
+  if (!audioContext || gunshotSource || typeof audioContext.createMediaElementSource !== 'function') return;
+  try {
+    gunshotSource = audioContext.createMediaElementSource(gunshotAudio);
+    gunshotGainNode = audioContext.createGain();
+    gunshotSource.connect(gunshotGainNode).connect(audioContext.destination);
+    updateAudioVolumes();
+  } catch (error) {
+    console.warn('Gunshot volume control could not be initialized.', error);
+  }
+}
+
 function playTone(frequency, duration, type = 'sine', volume = 0.06) {
-  const level = volume * 2 * ui.getSettings().volume;
+  const level = volume * 2;
   if (!soundEnabled || level <= 0) return;
   try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === 'suspended') audioContext.resume();
+    if (!ensureAudioContext()) return;
     const oscillator = audioContext.createOscillator();
     const gain = audioContext.createGain();
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
     gain.gain.setValueAtTime(level, audioContext.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
-    oscillator.connect(gain).connect(audioContext.destination);
+    oscillator.connect(gain).connect(effectsGainNode);
     oscillator.start();
     oscillator.stop(audioContext.currentTime + duration);
   } catch (error) {
@@ -215,12 +258,8 @@ function connectBackgroundMusicAudio() {
 
 function unlockGameAudio() {
   try {
-    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audioContext.state === 'suspended') {
-      audioContext.resume().catch((error) => {
-        console.warn('Game audio could not be unlocked.', error);
-      });
-    }
+    ensureAudioContext();
+    connectGunshotAudio();
   } catch (error) {
     console.warn('Game audio is unavailable.', error);
   }
@@ -305,14 +344,21 @@ function playGunshot() {
   const volume = ui.getSettings().shotVolume;
   if (!soundEnabled || volume <= 0) return;
 
-  gunshotPlaybackGeneration++;
-  gunshotAudio.pause();
-  gunshotAudio.currentTime = 0;
-  gunshotAudio.muted = false;
-  gunshotAudio.volume = volume;
-  gunshotAudio.play().catch((error) => {
+  try {
+    ensureAudioContext();
+    connectGunshotAudio();
+    updateAudioVolumes();
+    gunshotPlaybackGeneration++;
+    gunshotAudio.pause();
+    gunshotAudio.currentTime = 0;
+    gunshotAudio.muted = false;
+    if (gunshotGainNode) gunshotAudio.volume = 1;
+    gunshotAudio.play().catch((error) => {
+      console.warn('Gunshot audio could not be played.', error);
+    });
+  } catch (error) {
     console.warn('Gunshot audio could not be played.', error);
-  });
+  }
 }
 
 function speakAnnouncement(text) {
@@ -446,6 +492,7 @@ function handleAction(action) {
     soundEnabled = !soundEnabled;
     ui.toggleSound(soundEnabled);
     if (!soundEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    updateAudioVolumes();
     updateBackgroundMusic();
     if (soundEnabled) {
       unlockGameAudio();
@@ -454,6 +501,7 @@ function handleAction(action) {
   } else if (action === 'settings-change') {
     const settings = ui.getSettings();
     if ((!soundEnabled || settings.voiceVolume <= 0) && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+    updateAudioVolumes();
     const requestedQuality = settings.quality;
     if (requestedQuality !== quality) setQuality(requestedQuality);
     if (state === 'PLAYING' && settings.count !== configuredCountryCount) syncCountryCount(settings.count);
