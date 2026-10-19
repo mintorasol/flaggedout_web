@@ -51,10 +51,10 @@ let quality = 'medium';
 let audioContext = null;
 let effectsGainNode = null;
 let gunshotGainNode = null;
-const gunshotSources = new Map();
 const gunshotAudio = new Audio('/audio/shot-sound.mp3');
 gunshotAudio.preload = 'auto';
-let gunshotPlaybackGeneration = 0;
+let gunshotBufferPromise = null;
+let gunshotPlaybackWarningShown = false;
 let backgroundMusicSource = null;
 let backgroundMusicGain = null;
 const defaultBackgroundMusicUrl = '/audio/keep-climbing-the-soundings.mp3';
@@ -181,6 +181,8 @@ function ensureAudioContext() {
     audioContext = new AudioContextConstructor();
     effectsGainNode = audioContext.createGain();
     effectsGainNode.connect(audioContext.destination);
+    gunshotGainNode = audioContext.createGain();
+    gunshotGainNode.connect(audioContext.destination);
   }
   if (audioContext.state === 'suspended') {
     audioContext.resume().catch((error) => {
@@ -191,22 +193,21 @@ function ensureAudioContext() {
   return true;
 }
 
-function connectGunshotAudio(audio = gunshotAudio) {
-  if (!audioContext || gunshotSources.has(audio) || typeof audioContext.createMediaElementSource !== 'function') return false;
-  try {
-    const source = audioContext.createMediaElementSource(audio);
-    if (!gunshotGainNode) {
-      gunshotGainNode = audioContext.createGain();
-      gunshotGainNode.connect(audioContext.destination);
-    }
-    source.connect(gunshotGainNode);
-    gunshotSources.set(audio, source);
-    updateAudioVolumes();
-    return true;
-  } catch (error) {
-    console.warn('Gunshot volume control could not be initialized.', error);
-    return false;
+function loadGunshotBuffer() {
+  if (!audioContext) return Promise.reject(new Error('Audio is not initialized.'));
+  if (!gunshotBufferPromise) {
+    gunshotBufferPromise = fetch(gunshotAudio.src)
+      .then((response) => {
+        if (!response.ok) throw new Error(`Could not load the gunshot audio (${response.status}).`);
+        return response.arrayBuffer();
+      })
+      .then((data) => audioContext.decodeAudioData(data))
+      .catch((error) => {
+        gunshotBufferPromise = null;
+        throw error;
+      });
   }
+  return gunshotBufferPromise;
 }
 
 function playTone(frequency, duration, type = 'sine', volume = 0.06) {
@@ -264,32 +265,10 @@ function connectBackgroundMusicAudio() {
 
 function unlockGameAudio() {
   try {
-    ensureAudioContext();
-    connectGunshotAudio();
+    if (ensureAudioContext()) loadGunshotBuffer().catch(reportGunshotPlaybackError);
   } catch (error) {
     console.warn('Game audio is unavailable.', error);
   }
-
-  if (!gunshotAudio.paused) return;
-  const generation = ++gunshotPlaybackGeneration;
-  gunshotAudio.muted = true;
-  const unlockPlayback = gunshotAudio.play();
-  if (!unlockPlayback) {
-    gunshotAudio.pause();
-    gunshotAudio.currentTime = 0;
-    gunshotAudio.muted = false;
-    return;
-  }
-  unlockPlayback.then(() => {
-    if (generation !== gunshotPlaybackGeneration) return;
-    gunshotAudio.pause();
-    gunshotAudio.currentTime = 0;
-    gunshotAudio.muted = false;
-  }).catch((error) => {
-    if (generation !== gunshotPlaybackGeneration) return;
-    gunshotAudio.muted = false;
-    console.warn('Gunshot audio could not be unlocked.', error);
-  });
 }
 
 function updateBackgroundMusic() {
@@ -351,27 +330,40 @@ function playGunshot() {
   if (!soundEnabled || volume <= 0) return;
 
   try {
-    ensureAudioContext();
-    updateAudioVolumes();
-    const shot = gunshotAudio.cloneNode();
-    shot.currentTime = 0;
-    shot.muted = false;
-    shot.volume = connectGunshotAudio(shot) ? 1 : volume;
-    const cleanup = () => {
-      shot.removeEventListener('ended', cleanup);
-      gunshotSources.get(shot)?.disconnect();
-      gunshotSources.delete(shot);
-      shot.removeAttribute('src');
-      shot.load();
-    };
-    shot.addEventListener('ended', cleanup, { once: true });
-    shot.play().catch((error) => {
-      cleanup();
-      console.warn('Gunshot audio could not be played.', error);
-    });
+    if (ensureAudioContext() && typeof audioContext.decodeAudioData === 'function') {
+      loadGunshotBuffer().then(async (buffer) => {
+        if (!soundEnabled || ui.getSettings().shotVolume <= 0) return;
+        if (audioContext.state !== 'running') await audioContext.resume();
+        updateAudioVolumes();
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(gunshotGainNode);
+        source.onended = () => source.disconnect();
+        source.start();
+      }).catch((error) => {
+        reportGunshotPlaybackError(error);
+        playGunshotFallback(volume);
+      });
+      return;
+    }
+    playGunshotFallback(volume);
   } catch (error) {
-    console.warn('Gunshot audio could not be played.', error);
+    reportGunshotPlaybackError(error);
+    playGunshotFallback(volume);
   }
+}
+
+function playGunshotFallback(volume) {
+  const shot = gunshotAudio.cloneNode();
+  shot.volume = volume;
+  shot.play().catch(reportGunshotPlaybackError);
+}
+
+function reportGunshotPlaybackError(error) {
+  if (gunshotPlaybackWarningShown) return;
+  gunshotPlaybackWarningShown = true;
+  console.warn('Gunshot audio could not be loaded or played.', error);
+  ui.showToast('Gunshot audio could not be loaded. Check the audio file and browser settings.');
 }
 
 function speakAnnouncement(text) {
