@@ -50,8 +50,8 @@ let aimTimer = 0;
 let quality = 'medium';
 let audioContext = null;
 let effectsGainNode = null;
-let gunshotSource = null;
 let gunshotGainNode = null;
+const gunshotSources = new Map();
 const gunshotAudio = new Audio('/audio/shot-sound.mp3');
 gunshotAudio.preload = 'auto';
 let gunshotPlaybackGeneration = 0;
@@ -191,15 +191,21 @@ function ensureAudioContext() {
   return true;
 }
 
-function connectGunshotAudio() {
-  if (!audioContext || gunshotSource || typeof audioContext.createMediaElementSource !== 'function') return;
+function connectGunshotAudio(audio = gunshotAudio) {
+  if (!audioContext || gunshotSources.has(audio) || typeof audioContext.createMediaElementSource !== 'function') return false;
   try {
-    gunshotSource = audioContext.createMediaElementSource(gunshotAudio);
-    gunshotGainNode = audioContext.createGain();
-    gunshotSource.connect(gunshotGainNode).connect(audioContext.destination);
+    const source = audioContext.createMediaElementSource(audio);
+    if (!gunshotGainNode) {
+      gunshotGainNode = audioContext.createGain();
+      gunshotGainNode.connect(audioContext.destination);
+    }
+    source.connect(gunshotGainNode);
+    gunshotSources.set(audio, source);
     updateAudioVolumes();
+    return true;
   } catch (error) {
     console.warn('Gunshot volume control could not be initialized.', error);
+    return false;
   }
 }
 
@@ -346,14 +352,21 @@ function playGunshot() {
 
   try {
     ensureAudioContext();
-    connectGunshotAudio();
     updateAudioVolumes();
-    gunshotPlaybackGeneration++;
-    gunshotAudio.pause();
-    gunshotAudio.currentTime = 0;
-    gunshotAudio.muted = false;
-    if (gunshotGainNode) gunshotAudio.volume = 1;
-    gunshotAudio.play().catch((error) => {
+    const shot = gunshotAudio.cloneNode();
+    shot.currentTime = 0;
+    shot.muted = false;
+    shot.volume = connectGunshotAudio(shot) ? 1 : volume;
+    const cleanup = () => {
+      shot.removeEventListener('ended', cleanup);
+      gunshotSources.get(shot)?.disconnect();
+      gunshotSources.delete(shot);
+      shot.removeAttribute('src');
+      shot.load();
+    };
+    shot.addEventListener('ended', cleanup, { once: true });
+    shot.play().catch((error) => {
+      cleanup();
       console.warn('Gunshot audio could not be played.', error);
     });
   } catch (error) {
