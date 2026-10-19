@@ -50,6 +50,10 @@ let aimTimer = 0;
 let quality = 'medium';
 let audioContext = null;
 const gunshotAudio = new Audio('/audio/shot-sound.mp3');
+gunshotAudio.preload = 'auto';
+let gunshotPlaybackGeneration = 0;
+let backgroundMusicSource = null;
+let backgroundMusicGain = null;
 const defaultBackgroundMusicUrl = '/audio/keep-climbing-the-soundings.mp3';
 let uploadedMusicBlob = null;
 let uploadedMusicUrl = null;
@@ -190,11 +194,65 @@ function stopBackgroundMusic() {
   if (uploadedMusicAudio && !uploadedMusicAudio.paused) uploadedMusicAudio.pause();
 }
 
+function disconnectBackgroundMusicAudio() {
+  backgroundMusicSource?.disconnect();
+  backgroundMusicGain?.disconnect();
+  backgroundMusicSource = null;
+  backgroundMusicGain = null;
+}
+
+function connectBackgroundMusicAudio() {
+  if (!audioContext || !uploadedMusicAudio || backgroundMusicSource || typeof audioContext.createMediaElementSource !== 'function') return;
+  try {
+    backgroundMusicSource = audioContext.createMediaElementSource(uploadedMusicAudio);
+    backgroundMusicGain = audioContext.createGain();
+    backgroundMusicSource.connect(backgroundMusicGain).connect(audioContext.destination);
+  } catch (error) {
+    disconnectBackgroundMusicAudio();
+    console.warn('Background music volume control could not be initialized.', error);
+  }
+}
+
+function unlockGameAudio() {
+  try {
+    audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (audioContext.state === 'suspended') {
+      audioContext.resume().catch((error) => {
+        console.warn('Game audio could not be unlocked.', error);
+      });
+    }
+  } catch (error) {
+    console.warn('Game audio is unavailable.', error);
+  }
+
+  if (!gunshotAudio.paused) return;
+  const generation = ++gunshotPlaybackGeneration;
+  gunshotAudio.muted = true;
+  const unlockPlayback = gunshotAudio.play();
+  if (!unlockPlayback) {
+    gunshotAudio.pause();
+    gunshotAudio.currentTime = 0;
+    gunshotAudio.muted = false;
+    return;
+  }
+  unlockPlayback.then(() => {
+    if (generation !== gunshotPlaybackGeneration) return;
+    gunshotAudio.pause();
+    gunshotAudio.currentTime = 0;
+    gunshotAudio.muted = false;
+  }).catch((error) => {
+    if (generation !== gunshotPlaybackGeneration) return;
+    gunshotAudio.muted = false;
+    console.warn('Gunshot audio could not be unlocked.', error);
+  });
+}
+
 function updateBackgroundMusic() {
   const settings = ui.getSettings();
   const musicFile = ui.getBackgroundMusicFile();
   if (!uploadedMusicAudio || musicFile !== uploadedMusicBlob) {
     stopBackgroundMusic();
+    disconnectBackgroundMusicAudio();
     if (uploadedMusicAudio) uploadedMusicAudio.pause();
     if (uploadedMusicUrl) URL.revokeObjectURL(uploadedMusicUrl);
     uploadedMusicBlob = musicFile;
@@ -215,7 +273,14 @@ function updateBackgroundMusic() {
   }
   if (!uploadedMusicAudio) return;
 
-  uploadedMusicAudio.volume = Math.min(1, settings.musicVolume * 1.5);
+  connectBackgroundMusicAudio();
+  const musicLevel = settings.musicVolume ** 2;
+  if (backgroundMusicGain) {
+    uploadedMusicAudio.volume = 1;
+    backgroundMusicGain.gain.setTargetAtTime(musicLevel, audioContext.currentTime, 0.03);
+  } else {
+    uploadedMusicAudio.volume = musicLevel;
+  }
   if (uploadedMusicAudio.paused) {
     uploadedMusicAudio.play().then(() => {
       uploadedMusicPlaybackWarningShown = false;
@@ -240,9 +305,12 @@ function playGunshot() {
   const volume = ui.getSettings().shotVolume;
   if (!soundEnabled || volume <= 0) return;
 
-  const shot = gunshotAudio.cloneNode();
-  shot.volume = volume;
-  shot.play().catch((error) => {
+  gunshotPlaybackGeneration++;
+  gunshotAudio.pause();
+  gunshotAudio.currentTime = 0;
+  gunshotAudio.muted = false;
+  gunshotAudio.volume = volume;
+  gunshotAudio.play().catch((error) => {
     console.warn('Gunshot audio could not be played.', error);
   });
 }
@@ -287,6 +355,7 @@ function resolveOpeningShot(bullet) {
 }
 
 function startBattle() {
+  unlockGameAudio();
   state = 'STARTING';
   nextCycleTimer = 0;
   ui.showLaunch(false);
@@ -378,7 +447,10 @@ function handleAction(action) {
     ui.toggleSound(soundEnabled);
     if (!soundEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
     updateBackgroundMusic();
-    if (soundEnabled) playTone(660, 0.09);
+    if (soundEnabled) {
+      unlockGameAudio();
+      playTone(660, 0.09);
+    }
   } else if (action === 'settings-change') {
     const settings = ui.getSettings();
     if ((!soundEnabled || settings.voiceVolume <= 0) && 'speechSynthesis' in window) window.speechSynthesis.cancel();
