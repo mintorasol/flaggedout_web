@@ -153,8 +153,10 @@ function applyDefaultFraming() {
     camera.position.set(0, cameraTarget.y + distance * 0.956, cameraTarget.z + distance * 0.293);
     return;
   }
-  camera.position.set(0, 11.2, 18.4);
-  cameraTarget.set(0, 0.35, 0);
+  const desktopWide = aspect >= 1.5 && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  const verticalShift = desktopWide ? 0.6 : 0;
+  camera.position.set(0, 11.2 - verticalShift * 0.86, 18.4 + verticalShift * 0.51);
+  cameraTarget.set(0, 0.35 - verticalShift * 0.86, verticalShift * 0.51);
 }
 
 function restoreCamera() {
