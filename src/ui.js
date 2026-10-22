@@ -341,10 +341,7 @@ export function createUI(onAction) {
     ui.finalEliminations.textContent = String(stats.eliminated);
     ui.finalTime.textContent = formatTime(stats.elapsed);
     byId('winner-cycle').textContent = `CYCLE ${stats.cycle} COMPLETE`;
-    const flag = createFlagTexture(THREE, ball.code);
-    ui.winnerFlag.style.backgroundImage = `url(${flag.texture.image.toDataURL()})`;
-    ui.winnerFlag.style.backgroundSize = 'cover';
-    flag.texture.dispose();
+    ui.winnerFlag.style.backgroundImage = `url("${import.meta.env.BASE_URL}flags/${ball.code.toLowerCase()}.svg")`;
     startWinnerConfetti();
   }
   function startWinnerConfetti() {
