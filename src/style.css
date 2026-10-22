@@ -226,7 +226,7 @@ input[type=range]::-moz-range-thumb { width: 9px; height: 9px; border: 2px solid
 .elimination-count i { color: #73859b; font: normal 9px 'DM Mono', monospace; }
 .elimination-count-label { color: #91a3b8; font: 500 7px 'DM Mono', monospace; letter-spacing: .12em; }
 @media (min-width: 701px) and (min-height: 600px) and (min-aspect-ratio: 3/2) {
-  .elimination-board { bottom: -55px; }
+  .elimination-board { bottom: -95px; }
 }
 .eliminated-flags {
   display: grid;
