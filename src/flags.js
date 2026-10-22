@@ -39,6 +39,25 @@ const countries = [
   ['Luxembourg', 'LU', '#ed2939', '#fff']
 ];
 
+const flagImagePromises = new Map();
+
+function loadFlagImage(code) {
+  const id = code.toLowerCase();
+  if (!flagImagePromises.has(id)) {
+    const promise = new Promise((resolve, reject) => {
+      const image = new Image();
+      image.addEventListener('load', () => resolve(image), { once: true });
+      image.addEventListener('error', () => reject(new Error(`Unable to load the ${code} flag SVG.`)), { once: true });
+      image.src = `${import.meta.env.BASE_URL}flags/${id}.svg`;
+    }).catch((error) => {
+      console.error(error);
+      return null;
+    });
+    flagImagePromises.set(id, promise);
+  }
+  return flagImagePromises.get(id);
+}
+
 function star(ctx, x, y, outer, inner, points = 5) {
   ctx.beginPath();
   for (let i = 0; i < points * 2; i++) {
@@ -123,6 +142,12 @@ export function createFlagTexture(THREE, code, index = 0) {
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
+  loadFlagImage(id).then((image) => {
+    if (!image) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    texture.needsUpdate = true;
+  });
   return { texture, name };
 }
 
